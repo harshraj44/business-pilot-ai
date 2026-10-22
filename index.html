@@ -1,0 +1,237 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Business Pilot AI</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b1020;color:#eef2ff;font-family:Arial,sans-serif}
+.hidden{display:none!important}.wrap{max-width:1100px;margin:auto;padding:22px}
+.card{background:#141e33;border:1px solid #2c3956;border-radius:16px;padding:20px;margin:14px 0}
+input,select{width:100%;padding:12px;margin:7px 0 14px;background:#0b1427;color:white;border:1px solid #34415f;border-radius:9px}
+button{padding:11px 15px;border:0;border-radius:9px;background:#7868ff;color:white;cursor:pointer;font-weight:bold;margin:4px}
+.secondary{background:#263550}.danger{background:#7d2d43}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+nav{display:flex;flex-wrap:wrap;gap:6px}.muted{color:#aab7d0;font-size:13px}
+h1{margin-bottom:6px}table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:10px;border-bottom:1px solid #2c3956}
+.scroll{overflow:auto}#message{padding:12px;background:#342c19;border-radius:9px;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Business Pilot <span style="color:#40d8a5">AI</span></h1>
+  <p class="muted">Your business, managed simply.</p>
+  <div id="message">Add your Supabase URL and publishable/anon key in the code to begin.</div>
+
+  <section id="auth" class="card">
+    <h2 id="authTitle">Customer Login</h2>
+    <form id="authForm">
+      <label>Email</label><input id="email" type="email" required autocomplete="email">
+      <label>Password</label><input id="password" type="password" required minlength="6" autocomplete="current-password">
+      <button id="submitBtn">Login</button>
+      <button type="button" class="secondary" id="signupBtn">Create Account</button>
+    </form>
+    <p class="muted">New users need admin approval before using the dashboard.</p>
+  </section>
+
+  <section id="waiting" class="card hidden">
+    <h2 id="waitingTitle">Account pending approval</h2>
+    <p id="waitingText">Your account is waiting for admin approval.</p>
+    <button id="checkBtn">Check Status</button>
+    <button id="waitingLogout" class="secondary">Logout</button>
+  </section>
+
+  <section id="dashboard" class="hidden">
+    <div class="card">
+      <p id="welcome"></p>
+      <nav>
+        <button data-kind="income">+ Income</button>
+        <button data-kind="expense">+ Expense</button>
+        <button data-kind="khata">+ Udhaar</button>
+        <button data-kind="product">+ Product</button>
+        <button data-kind="sale">+ Sale</button>
+        <button data-kind="invoice">+ Invoice</button>
+        <button data-kind="payment">+ Payment</button>
+        <button data-kind="reminder">+ Reminder</button>
+        <button id="logoutBtn" class="danger">Logout</button>
+      </nav>
+    </div>
+    <div class="grid">
+      <div class="card"><p class="muted">Income</p><h2 id="incomeTotal">₹0</h2></div>
+      <div class="card"><p class="muted">Expenses</p><h2 id="expenseTotal">₹0</h2></div>
+      <div class="card"><p class="muted">Outstanding Invoices</p><h2 id="dueTotal">₹0</h2></div>
+      <div class="card"><p class="muted">Stock Units</p><h2 id="stockTotal">0</h2></div>
+    </div>
+    <div class="card">
+      <h2 id="formTitle">Add Business Record</h2>
+      <form id="recordForm">
+        <label>Record type</label>
+        <select id="kind">
+          <option value="income">Income</option><option value="expense">Expense</option>
+          <option value="khata">Udhaar / Khata</option><option value="product">Product / Stock</option>
+          <option value="sale">Sale</option><option value="purchase">Purchase</option>
+          <option value="invoice">Invoice</option><option value="payment">Payment</option>
+          <option value="reminder">Reminder</option>
+        </select>
+        <label>Description / Name</label><input id="description" required>
+        <div class="grid">
+          <div><label>Amount (₹)</label><input id="amount" type="number" min="0" step="0.01" value="0"></div>
+          <div><label>Quantity (stock/sale)</label><input id="quantity" type="number" min="0" step="1" value="0"></div>
+          <div><label>Customer / Supplier</label><input id="party"></div>
+          <div><label>Date / Due date</label><input id="date" type="date"></div>
+        </div>
+        <button id="saveBtn">Save Record</button>
+        <button type="button" class="secondary" id="clearBtn">Clear</button>
+      </form>
+    </div>
+    <div class="card">
+      <h2>Your Business Records</h2>
+      <div class="scroll"><table><thead><tr><th>Type</th><th>Description</th><th>Amount</th><th>Date</th><th>Action</th></tr></thead><tbody id="records"></tbody></table></div>
+    </div>
+  </section>
+</div>
+
+<script>
+const SUPABASE_URL = "YOUR_SUPABASE_PROJECT_URL";
+const SUPABASE_KEY = "YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY";
+const configured = SUPABASE_URL.startsWith("https://") &&
+  !SUPABASE_URL.includes("YOUR_") && !SUPABASE_KEY.includes("YOUR_");
+const db = configured ? window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY) : null;
+const $ = id => document.getElementById(id);
+let user = null, data = [], selectedKind = "income";
+
+function say(text){$("message").textContent=text;}
+function show(which){
+  ["auth","waiting","dashboard"].forEach(id=>$(id).classList.toggle("hidden",id!==which));
+}
+function safe(s){
+  return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+function rupees(n){return "₹"+(Number(n)||0).toLocaleString("en-IN",{maximumFractionDigits:2});}
+
+async function refreshAccess(){
+  if(!user) return;
+  const {data:profile,error}=await db.from("profiles")
+    .select("role,account_status,plan,starts_at,expires_at")
+    .eq("id",user.id).single();
+  if(error) throw error;
+  if(profile.role==="admin"){
+    location.href="admin.html";
+    return;
+  }
+  const active=profile.account_status==="active" &&
+    profile.starts_at && new Date(profile.starts_at)<=new Date() &&
+    profile.expires_at && new Date(profile.expires_at)>new Date();
+  if(!active){
+    show("waiting");
+    if(profile.account_status==="suspended"){
+      $("waitingTitle").textContent="Account suspended";
+      $("waitingText").textContent="Please contact the administrator.";
+    }else if(profile.account_status==="pending"){
+      $("waitingTitle").textContent="Waiting for approval";
+      $("waitingText").textContent="Your account is pending. Please check again after admin approval.";
+    }else{
+      $("waitingTitle").textContent="Plan expired or inactive";
+      $("waitingText").textContent="Please contact the administrator to renew your access.";
+    }
+    return;
+  }
+  $("welcome").textContent="Signed in: "+user.email+" | Plan: "+profile.plan+" | Expires: "+new Date(profile.expires_at).toLocaleDateString();
+  show("dashboard");
+  await loadRecords();
+}
+
+async function loadRecords(){
+  const {data:rows,error}=await db.from("business_records")
+    .select("*").order("created_at",{ascending:false});
+  if(error)throw error;
+  data=rows||[];
+  render();
+}
+function render(){
+  $("records").innerHTML=data.map(r=>{
+    const p=r.payload||{};
+    return `<tr><td>${safe(r.kind)}</td><td>${safe(p.description||"")}${p.party?"<br>"+safe(p.party):""}</td><td>${rupees(p.amount)}</td><td>${safe(p.date||"—")}</td><td><button class="danger" data-del="${safe(r.id)}">Delete</button></td></tr>`;
+  }).join("")||'<tr><td colspan="5">No records yet.</td></tr>';
+  $("incomeTotal").textContent=rupees(data.filter(r=>r.kind==="income").reduce((s,r)=>s+Number(r.payload?.amount||0),0));
+  $("expenseTotal").textContent=rupees(data.filter(r=>r.kind==="expense").reduce((s,r)=>s+Number(r.payload?.amount||0),0));
+  $("dueTotal").textContent=rupees(data.filter(r=>r.kind==="invoice").reduce((s,r)=>s+Math.max(0,Number(r.payload?.amount||0)-Number(r.payload?.paidAmount||0)),0));
+  $("stockTotal").textContent=data.filter(r=>r.kind==="product").reduce((s,r)=>s+Number(r.payload?.quantity||0),0);
+  document.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>removeRecord(b.dataset.del));
+}
+
+async function login(signup){
+  if(!configured){say("First replace YOUR_SUPABASE_PROJECT_URL and YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY in this file.");return;}
+  $("submitBtn").disabled=true;
+  try{
+    const email=$("email").value.trim(),password=$("password").value;
+    const result=signup
+      ? await db.auth.signUp({email,password})
+      : await db.auth.signInWithPassword({email,password});
+    if(result.error)throw result.error;
+    user=result.data.user;
+    if(signup&&!result.data.session){
+      say("Account created. Check your email, confirm it, then log in.");
+      return;
+    }
+    if(!user)throw new Error("Please confirm your email and log in.");
+    await refreshAccess();
+    say("Login successful.");
+  }catch(e){say(e.message||"Login failed.");}
+  finally{$("submitBtn").disabled=false;}
+}
+$("authForm").onsubmit=e=>{e.preventDefault();login(false);};
+$("signupBtn").onclick=()=>login(true);
+$("checkBtn").onclick=async()=>{try{await refreshAccess();say("Account status checked.");}catch(e){say(e.message);}};
+async function logout(){
+  if(db)await db.auth.signOut();
+  user=null;data=[];show("auth");say("Logged out.");
+}
+$("logoutBtn").onclick=logout;
+$("waitingLogout").onclick=logout;
+$("clearBtn").onclick=()=>{$("recordForm").reset();$("amount").value=0;$("quantity").value=0;};
+document.querySelectorAll("[data-kind]").forEach(b=>b.onclick=()=>{$("kind").value=b.dataset.kind;$("formTitle").textContent="Add "+b.dataset.kind;window.scrollTo({top:document.body.scrollHeight,behavior:"smooth"});});
+
+$("recordForm").onsubmit=async e=>{
+  e.preventDefault();
+  if(!user||!db)return;
+  const kind=$("kind").value;
+  const payload={
+    description:$("description").value.trim(),
+    amount:Number($("amount").value||0),
+    quantity:Number($("quantity").value||0),
+    party:$("party").value.trim(),
+    date:$("date").value||new Date().toISOString().slice(0,10)
+  };
+  try{
+    const {error}=await db.from("business_records").insert({user_id:user.id,kind,payload});
+    if(error)throw error;
+    $("recordForm").reset();$("amount").value=0;$("quantity").value=0;
+    await loadRecords();say("Record saved.");
+  }catch(e){say(e.message||"Could not save record.");}
+};
+async function removeRecord(id){
+  if(!confirm("Delete this record?"))return;
+  try{
+    const {error}=await db.from("business_records").delete().eq("id",id);
+    if(error)throw error;
+    await loadRecords();say("Record deleted.");
+  }catch(e){say(e.message);}
+}
+(async()=>{
+  if(!configured){show("auth");return;}
+  try{
+    const {data:{session}}=await db.auth.getSession();
+    if(session){user=session.user;await refreshAccess();}
+    db.auth.onAuthStateChange(async(_event,session)=>{
+      if(!session){user=null;show("auth");return;}
+      user=session.user;
+      try{await refreshAccess();}catch(e){say(e.message);}
+    });
+  }catch(e){say(e.message);}
+})();
+</script>
+</body>
+</html>
