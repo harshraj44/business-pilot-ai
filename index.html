@@ -6,72 +6,188 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Business Pilot AI</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <style>
-    *{box-sizing:border-box}
-    body{margin:0;font-family:Arial,sans-serif;background:#0b1020;color:#f5f7ff;min-height:100vh}
-    .wrap{max-width:1050px;margin:auto;padding:24px}
-    .card{background:#141c30;border:1px solid #293653;border-radius:18px;padding:24px;margin:18px 0}
-    h1{margin:0 0 8px;color:#80f0c0}
-    h2{margin-top:0}
-    input,select,textarea,button{width:100%;padding:12px;margin:7px 0;border-radius:9px;border:1px solid #354360;font:inherit}
-    input,select,textarea{background:#0c1426;color:white}
-    button{background:#55e0ad;color:#07150f;font-weight:bold;cursor:pointer;border:0}
-    button.secondary{background:#263653;color:white}
-    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
-    .muted{color:#b5c0d6}
-    .hidden{display:none!important}
-    .status{padding:12px;background:#202c44;border-radius:10px;margin:12px 0;white-space:pre-wrap}
-    .record{padding:12px;background:#0d1628;border-radius:10px;margin:8px 0;overflow-wrap:anywhere}
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0b1020;
+      color: #f5f7ff;
+      min-height: 100vh;
+    }
+
+    .wrap {
+      max-width: 1050px;
+      margin: auto;
+      padding: 24px;
+    }
+
+    .card {
+      background: #141c30;
+      border: 1px solid #293653;
+      border-radius: 18px;
+      padding: 24px;
+      margin: 18px 0;
+    }
+
+    h1 { margin: 0 0 8px; color: #80f0c0; }
+    h2 { margin-top: 0; }
+    label { display: block; margin-top: 8px; }
+
+    input, select, textarea, button {
+      width: 100%;
+      padding: 12px;
+      margin: 7px 0;
+      border-radius: 9px;
+      border: 1px solid #354360;
+      font: inherit;
+    }
+
+    input, select, textarea {
+      background: #0c1426;
+      color: white;
+    }
+
+    button {
+      background: #55e0ad;
+      color: #07150f;
+      font-weight: bold;
+      cursor: pointer;
+      border: 0;
+    }
+
+    button:disabled {
+      opacity: .6;
+      cursor: wait;
+    }
+
+    button.secondary {
+      background: #263653;
+      color: white;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 14px;
+    }
+
+    .muted { color: #b5c0d6; }
+
+    .hidden { display: none !important; }
+
+    .status {
+      padding: 12px;
+      background: #202c44;
+      border-radius: 10px;
+      margin: 12px 0;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .record {
+      padding: 12px;
+      background: #0d1628;
+      border-radius: 10px;
+      margin: 8px 0;
+      overflow-wrap: anywhere;
+    }
+
+    .danger {
+      background: #9e3446;
+      color: white;
+    }
+
+    @media (max-width: 600px) {
+      .wrap { padding: 12px; }
+      .card { padding: 17px; }
+    }
   </style>
 </head>
+
 <body>
 <div class="wrap">
+
   <header>
     <h1>Business Pilot AI</h1>
     <p class="muted">Your business, organized in one place.</p>
   </header>
 
-  <div id="message" class="status">Connecting to Supabase...</div>
+  <div id="message" class="status" role="status" aria-live="polite">
+    Connecting to Supabase...
+  </div>
 
+  <!-- AUTHENTICATION -->
   <section id="auth" class="card hidden">
     <h2>Welcome</h2>
     <p class="muted">Create your account or sign in.</p>
-    <input id="email" type="email" placeholder="Email address" autocomplete="email">
-    <input id="password" type="password" placeholder="Password (minimum 6 characters)" autocomplete="current-password">
+
+    <label for="email">Email address</label>
+    <input
+      id="email"
+      type="email"
+      placeholder="Email address"
+      autocomplete="email"
+      required
+    >
+
+    <label for="password">Password</label>
+    <input
+      id="password"
+      type="password"
+      placeholder="Minimum 6 characters"
+      autocomplete="current-password"
+      minlength="6"
+      required
+    >
+
     <div class="grid">
-      <button id="signupBtn">Create Account</button>
-      <button id="loginBtn" class="secondary">Login</button>
+      <button id="signupBtn" type="button">Create Account</button>
+      <button id="loginBtn" class="secondary" type="button">Login</button>
     </div>
   </section>
 
+  <!-- PENDING ACCOUNT -->
   <section id="pending" class="card hidden">
     <h2>Account Pending Approval</h2>
-    <p>Your account has been created. Please wait for the administrator to activate your access.</p>
-    <button id="pendingLogout" class="secondary">Logout</button>
+    <p>Your account is waiting for administrator approval.</p>
+    <p class="muted">
+      Once the administrator activates your account, you can access your dashboard.
+    </p>
+    <button class="secondary logoutBtn" type="button">Logout</button>
   </section>
 
+  <!-- SUSPENDED ACCOUNT -->
   <section id="suspended" class="card hidden">
     <h2>Account Suspended</h2>
-    <p>Please contact your administrator for assistance.</p>
-    <button id="suspendedLogout" class="secondary">Logout</button>
+    <p>Your access has been suspended by the administrator.</p>
+    <p class="muted">Please contact the administrator for assistance.</p>
+    <button class="secondary logoutBtn" type="button">Logout</button>
   </section>
 
+  <!-- EXPIRED PLAN -->
   <section id="expired" class="card hidden">
     <h2>Plan Expired</h2>
-    <p>Your access period has ended. Please contact your administrator to renew your plan.</p>
-    <button id="expiredLogout" class="secondary">Logout</button>
+    <p>Your access period has ended.</p>
+    <p class="muted">Contact the administrator to renew your plan.</p>
+    <button class="secondary logoutBtn" type="button">Logout</button>
   </section>
 
+  <!-- USER DASHBOARD -->
   <section id="dashboard" class="hidden">
+
     <div class="card">
       <h2>Business Dashboard</h2>
       <p id="userInfo" class="muted"></p>
       <p id="planInfo"></p>
-      <button id="logoutBtn" class="secondary">Logout</button>
+      <button id="logoutBtn" class="secondary" type="button">Logout</button>
     </div>
 
     <div class="card">
       <h2>Add Business Record</h2>
+
       <div class="grid">
         <div>
           <label for="kind">Record type</label>
@@ -87,102 +203,148 @@
             <option value="reminder">Reminder</option>
           </select>
         </div>
+
         <div>
           <label for="title">Title</label>
           <input id="title" placeholder="e.g. Product sale">
         </div>
+
         <div>
           <label for="amount">Amount (optional)</label>
-          <input id="amount" type="number" min="0" step="0.01" placeholder="0.00">
+          <input
+            id="amount"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="0.00"
+          >
         </div>
+
         <div>
           <label for="recordDate">Date</label>
           <input id="recordDate" type="date">
         </div>
       </div>
-      <textarea id="notes" rows="3" placeholder="Customer name, details or notes"></textarea>
-      <button id="saveBtn">Save Record</button>
+
+      <label for="notes">Notes</label>
+      <textarea
+        id="notes"
+        rows="3"
+        placeholder="Customer name, details or notes"
+      ></textarea>
+
+      <button id="saveBtn" type="button">Save Record</button>
     </div>
 
     <div class="card">
       <h2>Your Records</h2>
-      <button id="refreshBtn" class="secondary">Refresh Records</button>
+      <button id="refreshBtn" class="secondary" type="button">
+        Refresh Records
+      </button>
       <div id="records"></div>
     </div>
+
   </section>
 </div>
 
 <script>
+"use strict";
+
+// Supabase project configuration
 const SUPABASE_URL = "https://yrqcaugdpjywmpydgkfa.supabase.co";
 const SUPABASE_KEY = "sb_publishable_7nhaiA9bU5TZEfrmwvFnXQ_Qr3YMaez";
 
 const $ = id => document.getElementById(id);
-const message = (text) => $("message").textContent = text;
+const message = text => {
+  $("message").textContent = String(text ?? "");
+};
 
 let db = null;
 let currentUser = null;
 let currentProfile = null;
+let authBusy = false;
 
 function showOnly(id) {
-  ["auth","pending","suspended","expired","dashboard"].forEach(section => {
+  ["auth", "pending", "suspended", "expired", "dashboard"].forEach(section => {
     $(section).classList.toggle("hidden", section !== id);
   });
 }
 
+function setAuthButtonsDisabled(disabled) {
+  $("signupBtn").disabled = disabled;
+  $("loginBtn").disabled = disabled;
+}
+
 function safeText(value) {
   return String(value ?? "").replace(/[&<>"']/g, char => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
   })[char]);
 }
 
 async function init() {
   if (!window.supabase) {
-    message("Could not load Supabase. Check your internet connection and refresh.");
+    message("Supabase library could not load. Check your internet connection and refresh.");
     return;
   }
 
-  if (!SUPABASE_URL.startsWith("https://") ||
-      SUPABASE_KEY.includes("YOUR_SUPABASE")) {
-    message("Please add your Supabase URL and publishable key.");
+  if (!SUPABASE_URL.startsWith("https://") || !SUPABASE_KEY) {
+    message("Supabase configuration is missing.");
     return;
   }
 
-  db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  $("recordDate").value = new Date().toISOString().slice(0,10);
+  try {
+    db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  $("signupBtn").addEventListener("click", () => authenticate(true));
-  $("loginBtn").addEventListener("click", () => authenticate(false));
-  $("logoutBtn").addEventListener("click", logout);
-  $("pendingLogout").addEventListener("click", logout);
-  $("suspendedLogout").addEventListener("click", logout);
-  $("expiredLogout").addEventListener("click", logout);
-  $("saveBtn").addEventListener("click", saveRecord);
-  $("refreshBtn").addEventListener("click", loadRecords);
+    $("recordDate").value = new Date().toISOString().slice(0, 10);
 
-  const {data,error} = await db.auth.getSession();
-  if (error) {
-    message("Unable to check session: " + error.message);
-    return;
-  }
+    $("signupBtn").addEventListener("click", () => authenticate(true));
+    $("loginBtn").addEventListener("click", () => authenticate(false));
 
-  if (data.session) {
-    await loadUser(data.session.user);
-  } else {
-    showOnly("auth");
-    message("Please create an account or log in.");
-  }
+    document.querySelectorAll(".logoutBtn").forEach(button => {
+      button.addEventListener("click", logout);
+    });
 
-  db.auth.onAuthStateChange((event, session) => {
-    if (event === "SIGNED_OUT") {
-      currentUser = null;
-      currentProfile = null;
+    $("logoutBtn").addEventListener("click", logout);
+    $("saveBtn").addEventListener("click", saveRecord);
+    $("refreshBtn").addEventListener("click", loadRecords);
+
+    const { data, error } = await db.auth.getSession();
+
+    if (error) {
       showOnly("auth");
-      message("You have been logged out.");
+      message("Unable to check your session: " + error.message);
+      return;
     }
-  });
+
+    if (data.session?.user) {
+      await loadUser(data.session.user);
+    } else {
+      showOnly("auth");
+      message("Please create an account or log in.");
+    }
+
+    db.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") {
+        currentUser = null;
+        currentProfile = null;
+        showOnly("auth");
+        message("You have been logged out.");
+      }
+    });
+
+  } catch (error) {
+    showOnly("auth");
+    message("Initialization failed: " + (error.message || "Please refresh."));
+  }
 }
 
 async function authenticate(signup) {
+  if (!db || authBusy) return;
+
   const email = $("email").value.trim();
   const password = $("password").value;
 
@@ -190,181 +352,327 @@ async function authenticate(signup) {
     message("Please enter your email and password.");
     return;
   }
+
   if (signup && password.length < 6) {
-    message("Use a password with at least 6 characters.");
+    message("Password must contain at least 6 characters.");
     return;
   }
 
+  authBusy = true;
+  setAuthButtonsDisabled(true);
   message(signup ? "Creating your account..." : "Logging in...");
 
-  const result = signup
-    ? await db.auth.signUp({email,password})
-    : await db.auth.signInWithPassword({email,password});
+  try {
+    let result;
 
-  if (result.error) {
-    message(result.error.message);
-    return;
+    if (signup) {
+      result = await db.auth.signUp({
+        email,
+        password
+      });
+    } else {
+      result = await db.auth.signInWithPassword({
+        email,
+        password
+      });
+    }
+
+    if (result.error) {
+      const errorText = result.error.message || "Authentication failed.";
+      const lower = errorText.toLowerCase();
+
+      if (
+        lower.includes("signups not allowed") ||
+        lower.includes("signup is disabled") ||
+        lower.includes("signup_disabled")
+      ) {
+        message(
+          "Supabase has disabled new registrations for this project. " +
+          "Enable 'Allow new users to sign up' in Supabase Authentication settings."
+        );
+      } else if (
+        lower.includes("email not confirmed")
+      ) {
+        message(
+          "Your email is not confirmed. Turn off email confirmation in Supabase " +
+          "or confirm your email before logging in."
+        );
+      } else {
+        message(errorText);
+      }
+
+      return;
+    }
+
+    if (signup && !result.data.session) {
+      message(
+        "Account request received, but Supabase did not create a login session. " +
+        "Check email confirmation settings. If confirmation is disabled, try logging in."
+      );
+      return;
+    }
+
+    if (result.data.user) {
+      await loadUser(result.data.user);
+    } else {
+      message("No user was returned. Please try again.");
+    }
+
+  } catch (error) {
+    message("Request failed: " + (error.message || "Please try again."));
+  } finally {
+    authBusy = false;
+    setAuthButtonsDisabled(false);
   }
-
-  if (signup && !result.data.session) {
-    message("Account created. Check your email to confirm your account, then log in.");
-    return;
-  }
-
-  if (result.data.user) await loadUser(result.data.user);
 }
 
 async function loadUser(user) {
   currentUser = user;
+  currentProfile = null;
   message("Loading your account...");
 
-  const {data:profile,error} = await db
-    .from("profiles")
-    .select("id,email,role,account_status,plan,starts_at,expires_at")
-    .eq("id",user.id)
-    .maybeSingle();
+  try {
+    const { data: profile, error } = await db
+      .from("profiles")
+      .select("id,email,role,account_status,plan,starts_at,expires_at")
+      .eq("id", user.id)
+      .maybeSingle();
 
-  if (error) {
+    if (error) {
+      showOnly("auth");
+      message("Could not load your profile: " + error.message);
+      return;
+    }
+
+    if (!profile) {
+      showOnly("auth");
+      message(
+        "Your profile was not found. Check that the Supabase signup trigger " +
+        "creates a row in public.profiles."
+      );
+      return;
+    }
+
+    currentProfile = profile;
+
+    if (profile.role === "admin") {
+      message("Administrator account detected. Opening the admin panel...");
+      window.location.href = "https://business-pilot-aiadmin-sd5o.vercel.app/";
+      return;
+    }
+
+    if (profile.account_status === "suspended") {
+      showOnly("suspended");
+      message("Your account is suspended.");
+      return;
+    }
+
+    if (profile.account_status !== "active") {
+      showOnly("pending");
+      message("Your account is waiting for administrator approval.");
+      return;
+    }
+
+    const now = new Date();
+    const start = profile.starts_at ? new Date(profile.starts_at) : null;
+    const expiry = profile.expires_at ? new Date(profile.expires_at) : null;
+
+    if (start && start > now) {
+      showOnly("pending");
+      message("Your plan has not started yet. Please contact the administrator.");
+      return;
+    }
+
+    if (expiry && expiry <= now) {
+      showOnly("expired");
+      message("Your plan has expired.");
+      return;
+    }
+
+    showOnly("dashboard");
+
+    $("userInfo").textContent = "Logged in as " + user.email;
+
+    $("planInfo").textContent =
+      "Plan: " + (profile.plan || "Not assigned") +
+      (expiry ? " | Expires: " + expiry.toLocaleDateString() : "");
+
+    message("Welcome! Your dashboard is ready.");
+
+    await loadRecords();
+
+  } catch (error) {
     showOnly("auth");
-    message("Profile setup is incomplete. In Supabase, run the required database SQL. Details: " + error.message);
-    return;
+    message("Could not load your account: " + (error.message || "Try again."));
   }
-
-  if (!profile) {
-    showOnly("auth");
-    message("Your profile has not been created yet. Check the Supabase profile trigger or database setup.");
-    return;
-  }
-
-  currentProfile = profile;
-
-  if (profile.role === "admin") {
-    message("Administrator account detected. Open admin.html to manage customers.");
-    window.location.href = "admin.html";
-    return;
-  }
-
-  if (profile.account_status === "suspended") {
-    showOnly("suspended");
-    message("Your account is suspended.");
-    return;
-  }
-
-  if (profile.account_status !== "active") {
-    showOnly("pending");
-    message("Your account is waiting for administrator approval.");
-    return;
-  }
-
-  if (profile.expires_at && new Date(profile.expires_at) < new Date()) {
-    showOnly("expired");
-    message("Your plan has expired.");
-    return;
-  }
-
-  showOnly("dashboard");
-  $("userInfo").textContent = "Logged in as " + user.email;
-  $("planInfo").textContent = "Plan: " + (profile.plan || "none") +
-    (profile.expires_at ? " | Expires: " + new Date(profile.expires_at).toLocaleDateString() : "");
-
-  message("Welcome! Your dashboard is ready.");
-  await loadRecords();
 }
 
 async function saveRecord() {
-  if (!currentUser) return;
+  if (!currentUser || !currentProfile) {
+    message("Please log in first.");
+    return;
+  }
+
+  if (currentProfile.account_status !== "active") {
+    message("Your account is not active.");
+    return;
+  }
 
   const title = $("title").value.trim();
+
   if (!title) {
     message("Please enter a title for the record.");
     return;
   }
 
   const amountValue = $("amount").value;
+  const amount = amountValue === "" ? null : Number(amountValue);
+
+  if (amount !== null && (!Number.isFinite(amount) || amount < 0)) {
+    message("Enter a valid amount.");
+    return;
+  }
+
   const payload = {
     title,
-    amount: amountValue === "" ? null : Number(amountValue),
+    amount,
     date: $("recordDate").value || null,
     notes: $("notes").value.trim()
   };
 
+  $("saveBtn").disabled = true;
   message("Saving record...");
 
-  const {error} = await db.from("business_records").insert({
-    user_id: currentUser.id,
-    kind: $("kind").value,
-    payload
-  });
+  try {
+    const { error } = await db.from("business_records").insert({
+      user_id: currentUser.id,
+      kind: $("kind").value,
+      payload
+    });
 
-  if (error) {
-    message("Could not save record: " + error.message);
-    return;
+    if (error) {
+      message("Could not save record: " + error.message);
+      return;
+    }
+
+    $("title").value = "";
+    $("amount").value = "";
+    $("notes").value = "";
+
+    message("Record saved successfully.");
+    await loadRecords();
+
+  } catch (error) {
+    message("Save failed: " + (error.message || "Please try again."));
+  } finally {
+    $("saveBtn").disabled = false;
   }
-
-  $("title").value = "";
-  $("amount").value = "";
-  $("notes").value = "";
-  message("Record saved successfully.");
-  await loadRecords();
 }
 
 async function loadRecords() {
   if (!currentUser) return;
 
   $("records").textContent = "Loading records...";
+  $("refreshBtn").disabled = true;
 
-  const {data,error} = await db.from("business_records")
-    .select("id,kind,payload,created_at")
-    .eq("user_id",currentUser.id)
-    .order("created_at",{ascending:false})
-    .limit(100);
+  try {
+    const { data, error } = await db
+      .from("business_records")
+      .select("id,kind,payload,created_at")
+      .eq("user_id", currentUser.id)
+      .order("created_at", { ascending: false })
+      .limit(100);
 
-  if (error) {
-    $("records").textContent = "Could not load records: " + error.message;
-    return;
-  }
+    if (error) {
+      $("records").textContent = "Could not load records: " + error.message;
+      return;
+    }
 
-  $("records").replaceChildren();
+    $("records").replaceChildren();
 
-  if (!data || data.length === 0) {
-    $("records").textContent = "No records yet. Add your first business record above.";
-    return;
-  }
+    if (!data || data.length === 0) {
+      $("records").textContent =
+        "No records yet. Add your first business record above.";
+      return;
+    }
 
-  data.forEach(record => {
-    const item = document.createElement("div");
-    item.className = "record";
-    const p = record.payload || {};
-    item.innerHTML =
-      "<strong>" + safeText(p.title || record.kind) + "</strong>" +
-      "<p>Type: " + safeText(record.kind) + "</p>" +
-      (p.amount != null ? "<p>Amount: " + safeText(p.amount) + "</p>" : "") +
-      (p.date ? "<p>Date: " + safeText(p.date) + "</p>" : "") +
-      (p.notes ? "<p>" + safeText(p.notes) + "</p>" : "") +
-      "<button class='secondary delete-record'>Delete</button>";
+    data.forEach(record => {
+      const item = document.createElement("div");
+      item.className = "record";
 
-    item.querySelector("button").addEventListener("click", async () => {
-      if (!confirm("Delete this record?")) return;
+      const p = record.payload || {};
 
-      const {error} = await db.from("business_records")
-        .delete().eq("id",record.id).eq("user_id",currentUser.id);
+      const title = document.createElement("strong");
+      title.textContent = p.title || record.kind;
+      item.appendChild(title);
 
-      if (error) {
-        message("Could not delete record: " + error.message);
-      } else {
-        message("Record deleted.");
-        await loadRecords();
+      const type = document.createElement("p");
+      type.textContent = "Type: " + record.kind;
+      item.appendChild(type);
+
+      if (p.amount !== null && p.amount !== undefined) {
+        const amount = document.createElement("p");
+        amount.textContent = "Amount: " + p.amount;
+        item.appendChild(amount);
       }
+
+      if (p.date) {
+        const date = document.createElement("p");
+        date.textContent = "Date: " + p.date;
+        item.appendChild(date);
+      }
+
+      if (p.notes) {
+        const notes = document.createElement("p");
+        notes.textContent = p.notes;
+        item.appendChild(notes);
+      }
+
+      const deleteButton = document.createElement("button");
+      deleteButton.className = "secondary danger";
+      deleteButton.textContent = "Delete";
+      deleteButton.type = "button";
+
+      deleteButton.addEventListener("click", async () => {
+        if (!confirm("Delete this record?")) return;
+
+        deleteButton.disabled = true;
+
+        const { error: deleteError } = await db
+          .from("business_records")
+          .delete()
+          .eq("id", record.id)
+          .eq("user_id", currentUser.id);
+
+        if (deleteError) {
+          message("Could not delete record: " + deleteError.message);
+          deleteButton.disabled = false;
+        } else {
+          message("Record deleted.");
+          await loadRecords();
+        }
+      });
+
+      item.appendChild(deleteButton);
+      $("records").appendChild(item);
     });
 
-    $("records").appendChild(item);
-  });
+  } catch (error) {
+    $("records").textContent =
+      "Could not load records: " + (error.message || "Please try again.");
+  } finally {
+    $("refreshBtn").disabled = false;
+  }
 }
 
 async function logout() {
   if (!db) return;
-  const {error} = await db.auth.signOut();
-  if (error) message("Logout failed: " + error.message);
+
+  const { error } = await db.auth.signOut();
+
+  if (error) {
+    message("Logout failed: " + error.message);
+  }
 }
 
 init();
